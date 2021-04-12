@@ -5,8 +5,7 @@ metadata:
   labels:
     app: web
 spec:
-  securityContext:
-    runAsUser: 1001
+  replicas: 1
   containers: 
     - name: web-hw1-v1
       image: polovina/hw1:latest
