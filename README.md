@@ -78,38 +78,6 @@ Pods Status:    1 Running / 0 Waiting / 0 Succeeded / 0 Failed
 
 ##########################################################################
 4. Переделан докерфайл (Dockerfile) в него копируется только конфиг nginx.conf который при обращению к location / перенаправляет на index.html, лежащий в /app
-Dockerfile:
-FROM nginx
-COPY nginx.conf /etc/nginx/nginx.conf 
-EXPOSE 8000
-ENTRYPOINT ["nginx", "-g", "daemon off;"]
-
-web-pod.yaml:
-apiVersion: v1
-kind: Pod
-metadata:
-  name: web-hw1
-  labels:
-    app: web
-spec:
-  containers:
-    - name: web-hw1-v1
-      image: polovina/hw1:latest
-      volumeMounts:
-      - name: app
-        mountPath: "/app"
-      ports:
-        - containerPort: 8000
-  initContainers:
-    - name: init-web
-      image: busybox:latest
-      command: ['sh', '-c', 'wget -O-  https://tinyurl.com/otus-k8s-intro | sh']
-      volumeMounts:
-      - name: app
-        mountPath: "/app"
-  volumes:
-  - name: app
-    emptyDir: {}
 
 
 MacBook-Elena:~ elenakolibri$ kubectl apply -f web-pod.yaml && kubectl get pods -w
@@ -119,11 +87,9 @@ web-hw1   0/1     Init:0/1   0          0s
 web-hw1   0/1     Init:0/1   0          8s
 web-hw1   0/1     PodInitializing   0          9s
 web-hw1   1/1     Running           0          12s
-^CMacBook-Elena:~ elenakolibrikubectl port-forward --address 0.0.0.0 pod/web-hw1 8000:8000
-Forwarding from 0.0.0.0:8000 -> 8000
-Handling connection for 8000
-Handling connection for 8000
+
 
 По адресу localhost:8000 загружается страничка index.html
-
+ ############################################################################
+ В последнем задании необходимо было добавить conainerPort и переменные в файл yaml
 
