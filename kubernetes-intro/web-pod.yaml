@@ -8,15 +8,19 @@ spec:
   containers:
     - name: web-hw1-v1
       image: polovina/hw1:latest
+      volumeMounts:
+      - name: app
+        mountPath: "/app"
       ports:
         - containerPort: 8000
   initContainers:
-    - name: init-web-hw1
-      image: busybox
-      command:  ['sh', '-c', 'wget -O- https://tinyurl.com/otus-k8s-intro | sh']
+    - name: init-web
+      image: busybox:latest
+      command: ['sh', '-c', 'wget -O-  https://tinyurl.com/otus-k8s-intro | sh']
       volumeMounts:
       - name: app
         mountPath: "/app"
   volumes:
   - name: app
     emptyDir: {}
+
