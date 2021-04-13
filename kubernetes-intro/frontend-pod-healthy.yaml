@@ -45,6 +45,13 @@ spec:
       value: "checkoutservice:5050"
     - name: AD_SERVICE_ADDR
       value: "adservice:9555"
+    resources:
+      requests:
+        cpu: 100m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi
   dnsPolicy: ClusterFirst
   restartPolicy: Never
 status: {}
