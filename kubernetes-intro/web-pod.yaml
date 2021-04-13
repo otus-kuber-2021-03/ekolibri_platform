@@ -1,12 +1,12 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: web-hw1
+  name: web
   labels:
     app: web
 spec:
   containers:
-    - name: web-hw1-v1
+    - name: web-hw1
       image: polovina/hw1:latest
       volumeMounts:
       - name: app
