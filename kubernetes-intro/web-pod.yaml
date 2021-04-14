@@ -8,6 +8,7 @@ spec:
   containers:
     - name: web
       image: polovina/hw1:latest
+      imagePullPolicy: Always
       volumeMounts:
       - name: app
         mountPath: "/app"

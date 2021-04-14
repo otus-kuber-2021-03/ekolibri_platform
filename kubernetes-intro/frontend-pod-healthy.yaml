@@ -8,6 +8,7 @@ metadata:
 spec:
   containers:
   - image: polovina/hw1:frontend
+    imagePullPolicy: Always
     name: frontend
     resources: {}
     ports:
