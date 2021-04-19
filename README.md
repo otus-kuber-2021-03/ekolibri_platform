@@ -1,9 +1,127 @@
 # ekolibri_platform
 ekolibri Platform repository
-Проделанная работа:
-1. Установлен minikube 
+Задание №2
+1. при запуске пода возникает ошибка:
+MacBook-Elena:ekolibri_platform elenakolibri$ kubectl apply -f kubernetes-controllers/frontend-replicaset.yaml 
+error: error validating "kubernetes-controllers/frontend-replicaset.yaml": error validating data: ValidationError(ReplicaSet.spec): missing required field "selector" in io.k8s.api.apps.v1.ReplicaSetSpec; if you choose to ignore these errors, turn validation off with --validate=false
+не указан selector
+MacBook-Elena$ kubectl get rs
+NAME       DESIRED   CURRENT   READY   AGE
+MacBook-Elena$ kubectl get pods -l app=frontend
+NAME             READY   STATUS    RESTARTS   AGE
+frontend-vp7ss   1/1     Running   0          2m6sfrontend   1         0         0       10s
 
-##################################################################################
+2. Почему при изменении образа в файле  frontend-replicaset.yaml  и apply -f из него ничего не происходит, а версия меняется только после удаления подов?
+Потому что ReplicaSet управляет количеством запущенных подов, и не умеет пересоздавать их налету  при изменении конфигурации, это умеет Deployment.  При удалении подов ReplicaSet видит что их нет, а надо 3, считывает конфиг и запускает уже поды с новой версией.  
+
+3. Создан Deployment 
+MacBook-Elena:~ elenakolibri$ kubectl apply -f ekolibri_platform/kubernetes-controllers/paymentservice-deployment.yaml | kubectl get pods -l app=payment -w
+NAME                       READY   STATUS    RESTARTS   AGE
+payment-86766bc788-fvzsz   1/1     Running   0          3m59s
+payment-86766bc788-tv5gr   1/1     Running   0          3m59s
+payment-86766bc788-xdvsv   1/1     Running   0          3m59s
+payment-7c8f7fc785-f6sss   0/1     Pending   0          0s
+payment-7c8f7fc785-f6sss   0/1     Pending   0          0s
+payment-7c8f7fc785-f6sss   0/1     ContainerCreating   0          0s
+payment-7c8f7fc785-f6sss   1/1     Running             0          9s
+payment-86766bc788-xdvsv   1/1     Terminating         0          4m19s
+payment-7c8f7fc785-w65jw   0/1     Pending             0          7s
+payment-7c8f7fc785-w65jw   0/1     Pending             0          19s
+payment-7c8f7fc785-w65jw   0/1     ContainerCreating   0          21s
+payment-86766bc788-xdvsv   0/1     Terminating         0          4m59s
+payment-7c8f7fc785-w65jw   1/1     Running             0          47s
+payment-86766bc788-xdvsv   0/1     Terminating         0          5m39s
+payment-86766bc788-xdvsv   0/1     Terminating         0          5m39s
+payment-86766bc788-tv5gr   1/1     Terminating         0          6m15s
+payment-7c8f7fc785-8lfwz   0/1     Pending             0          5s
+payment-7c8f7fc785-8lfwz   0/1     Pending             0          8s
+payment-7c8f7fc785-8lfwz   0/1     ContainerCreating   0          11s
+payment-7c8f7fc785-8lfwz   0/1     ErrImagePull        0          31s
+payment-86766bc788-tv5gr   0/1     Terminating         0          6m48s
+payment-7c8f7fc785-8lfwz   0/1     ImagePullBackOff    0          45s
+payment-7c8f7fc785-8lfwz   1/1     Running             0          49s
+payment-86766bc788-fvzsz   1/1     Terminating         0          7m10s
+
+Пересозданы с новым образом:
+acBook-Elena:~ elenakolibri$ kubectl get pods -l app=payment -o jsonpath="{.items[0:3].spec.containers[0].image}"
+polovina/paymentservice:v0.0.2 polovina/paymentservice:v0.0.2 polovina/paymentservice:v0.0.2
+
+Присутствуют две RS
+MacBook-Elena:~ elenakolibri$ kubectl get rs
+NAME                 DESIRED   CURRENT   READY   AGE
+payment-7c8f7fc785   3         3         3       9m37s
+payment-86766bc788   0         0         0       13m
+
+Откат прошел до первой версии:
+MacBook-Elena:~ elenakolibri$ kubectl rollout undo deployment payment --to-revision=1 | kubectl get rs -l app=payment -w
+NAME                 DESIRED   CURRENT   READY   AGE
+payment-7c8f7fc785   3         3         3       11m
+payment-86766bc788   0         0         0       15m
+payment-86766bc788   0         0         0       16m
+payment-86766bc788   1         0         0       16m
+payment-86766bc788   1         1         1       17m
+payment-7c8f7fc785   2         3         3       13m
+payment-86766bc788   2         1         1       17m
+payment-7c8f7fc785   2         3         3       13m
+payment-7c8f7fc785   2         2         2       13m
+payment-86766bc788   2         1         1       17m
+payment-86766bc788   2         2         1       17m
+payment-86766bc788   2         2         2       17m
+payment-7c8f7fc785   1         2         2       14m
+payment-86766bc788   3         2         2       18m
+payment-7c8f7fc785   1         2         2       14m
+payment-7c8f7fc785   1         1         1       14m
+payment-86766bc788   3         2         2       18m
+payment-86766bc788   3         3         2       18m
+payment-86766bc788   3         3         3       18m
+payment-7c8f7fc785   0         1         1       14m
+payment-7c8f7fc785   0         1         1       15m
+payment-7c8f7fc785   0         0         0       15m
+
+MacBook-Elena:~ elenakolibri$ kubectl get pods -l app=payment -o jsonpath="{.items[0:3].spec.containers[0].image}"
+polovina/paymentservice:v0.0.1 polovina/paymentservice:v0.0.1 polovina/paymentservice:v0.0.1
+
+
+4. Создан деплоймент paymentservice-deployment-bg.yaml
+Здесь при выставлении maxSurge: 100% поднимаются три ноды с новой версией, однако старые не терминируются. Поэтому необходимо  поставить деплой на паузу, и сделать, например, scale:
+MacBook-Elena:~ elenakolibrikubectl rollout pause deployment paymentservice
+deployment.apps/paymentservice paused
+MacBook-Elena:~ elenakolibri$ kubectl scale deployment.apps/paymentservice --replicas=3 
+deployment.apps/paymentservice scaled
+MacBook-Elena:~ elenakolibri$ kubectl get pods -l app=paymentservice
+NAME                             READY   STATUS    RESTARTS   AGE
+paymentservice-8799cb596-h6lll   1/1     Running   0          3m1s
+paymentservice-8799cb596-rvtf6   1/1     Running   0          3m1s
+paymentservice-8799cb596-sdkzj   1/1     Running   0          3m1s
+MacBook-Elena:~ elenakolibri$ kubectl get pods -l app=paymentservice -o=jsonpath="{.items[0:3].spec.containers[0].image}"
+polovina/paymentservice:v0.0.2 polovina/paymentservice:v0.0.2 polovina/paymentservice:v0.0.2
+
+Еще как вариант, можно после постановки на паузу изменить конфиг деплоя, например убрать maxSurge и maxUnavailable тогда не отвечающие версии образа ноды тоже затерминируются. 
+
+5. Создан деплоймент paymentservice-deployment-reversr.yaml
+
+6. Создан деплоймент frontend c livenesProbe, при изменении на /_health ошибка:
+Events:
+  Type     Reason     Age               From               Message
+  ----     ------     ----              ----               -------
+  Normal   Scheduled  47s               default-scheduler  Successfully assigned default/frontend-97d48946b-r4v6j to kind-worker2
+  Normal   Pulling    45s               kubelet            Pulling image "polovina/frontend:v0.0.2"
+  Normal   Pulled     32s               kubelet            Successfully pulled image "polovina/frontend:v0.0.2" in 13.879496623s
+  Normal   Created    31s               kubelet            Created container frontend
+  Normal   Started    30s               kubelet            Started container frontend
+  Warning  Unhealthy  9s (x2 over 19s)  kubelet            Liveness probe failed: HTTP probe failed with statuscode: 404
+  Warning  Unhealthy  6s (x2 over 16s)  kubelet            Readiness probe failed: HTTP probe failed with statuscode: 404 
+
+7. В node-exporter для запуска на мастер нодах необходимо добавить 
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+
+----------------------------------------------------------------------------------
+
+----------------------------------------------------------------------------------
+Задание 1: 
+1. Установлен minikube 
 2. Ответ на вопрос почему поды в kube-system перезапускаются после удаления:
 MacBook-Elena:~ elenakolibri$ kubectl get pods -n kube-system
 NAME                               READY   STATUS    RESTARTS   AGE
@@ -18,9 +136,6 @@ $ sudo cat /var/lib/kubelet/config.yaml | grep static
 staticPodPath: /etc/kubernetes/manifests
 
 $ sudo ls -la /etc/kubernetes/manifests/
-total 16
-drwxr-xr-x 2 root root  120 Apr 11 10:22 .
-drwxr-xr-x 4 root root  160 Apr 11 10:22 ..
 -rw------- 1 root root 2277 Apr 11 10:22 etcd.yaml
 -rw------- 1 root root 3585 Apr 11 10:22 kube-apiserver.yaml
 -rw------- 1 root root 2895 Apr 11 10:22 kube-controller-manager.yaml
@@ -75,11 +190,7 @@ Pods Status:    1 Running / 0 Waiting / 0 Succeeded / 0 Failed
 ##########################################################################
 3. Cобран образ nginx из докерфайла (Dockerfile_old)  в который копируется index.html и nginx.conf 
 создан web-app.yaml файл, запушен, на localhost:8000 висит страничка, отображающая дату
-
-##########################################################################
 4. Переделан докерфайл (Dockerfile) в него копируется только конфиг nginx.conf который при обращению к location / перенаправляет на index.html, лежащий в /app
-
-
 MacBook-Elena:~ elenakolibri$ kubectl apply -f web-pod.yaml && kubectl get pods -w
 pod/web-hw1 created
 NAME      READY   STATUS     RESTARTS   AGE
@@ -87,9 +198,9 @@ web-hw1   0/1     Init:0/1   0          0s
 web-hw1   0/1     Init:0/1   0          8s
 web-hw1   0/1     PodInitializing   0          9s
 web-hw1   1/1     Running           0          12s
-
-
 По адресу localhost:8000 загружается страничка index.html
- ############################################################################
- В последнем задании необходимо было добавить conainerPort и переменные в файл yaml
+
+5. В последнем задании необходимо было добавить conainerPort и переменные в файл yaml
+
+. 
 
