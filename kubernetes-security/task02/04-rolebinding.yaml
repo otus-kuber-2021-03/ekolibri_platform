@@ -4,10 +4,9 @@ metadata:
   name: prometheus-binding
   namespace: prometheus
 subjects:
-- kind: ServiceAccount
+- kind: Group
   name: system:serviceaccounts:prometheus
-  namespace: prometheus
-  apiGroup: ""
+  apiGroup: rbac.authorization.k8s.io
 roleRef:
   kind: Role
   name: prometheus-cluster-role
