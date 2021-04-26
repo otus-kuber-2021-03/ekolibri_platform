@@ -1,5 +1,39 @@
 # ekolibri_platform
 ekolibri Platform repository
+
+Задание №4 VOLUMES
+
+1. Создан secret verysecret, куда помещены значения переменных в base64
+2. Запущен statefulset
+
+MacBook-Elena:~ elenakolibri$ kubectl describe statefulset minio
+Name:               minio
+Namespace:          default
+CreationTimestamp:  Fri, 23 Apr 2021 23:56:18 +0300
+Selector:           app=minio
+Labels:             <none>
+Annotations:        <none>
+Replicas:           1 desired | 1 total
+Update Strategy:    RollingUpdate
+  Partition:        0
+Pods Status:        0 Running / 1 Waiting / 0 Succeeded / 0 Failed
+Pod Template:
+  Labels:  app=minio
+  Containers:
+   minio:
+    Image:      minio/minio:RELEASE.2019-07-10T00-34-56Z
+    Port:       9000/TCP
+    Host Port:  0/TCP
+    Args:
+      server
+      /data
+    Liveness:  http-get http://:9000/minio/health/live delay=120s timeout=1s period=20s #success=1 #failure=3
+    Environment Variables from:
+      verysecret  Secret  Optional: false
+    Environment:  <none>
+
+------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------
 Задание №2
 1. при запуске пода возникает ошибка:
 MacBook-Elena:ekolibri_platform elenakolibri$ kubectl apply -f kubernetes-controllers/frontend-replicaset.yaml 
