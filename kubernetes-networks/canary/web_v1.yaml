@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-app-v1
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: web
+      version: v1
+  template:
+    metadata:
+      name: web
+      labels:
+        app: web
+        version: v1
+    spec:
+      containers:
+        - name: web
+          image: polovina/hw1:v1
+          volumeMounts:
+          - name: app
+            mountPath: "/app"
+          ports:
+            - containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /index.html 
+              port: 8000
+      initContainers:
+        - name: init-web
+          image: busybox:latest
+          command: ['sh', '-c', 'wget -O-  https://tinyurl.com/otus-k8s-intro | sh']
+          volumeMounts:
+          - name: app
+            mountPath: "/app"
+      volumes:
+        - name: app
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-svc-v1 
+spec:
+  selector:
+    app: web
+    version: v1
+  type: ClusterIP
+  clusterIP: None
+  ports:
+  - protocol: TCP 
+    port: 80
+    targetPort: 8000
+

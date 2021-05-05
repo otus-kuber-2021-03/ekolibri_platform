@@ -1,6 +1,103 @@
 # ekolibri_platform
 ekolibri Platform repository
 
+Задание №5 NETWORKS
+1.Создан деплоймент и сервис для web-pod.
+. Почему следующая конфигурация валидна, но не имеет смысла?
+livenessProbe:
+  exec:
+command:
+- 'sh'
+- '-c'
+- 'ps aux | grep my_web_server_process'
+Потому что эта проверка смотрит запущен ли внутри контейнера процесс, но не показывает доступен ли сервис извне.
+. Бывают ли ситуации, когда она все-таки имеет смысл?
+Думаю, это может понадобится если мы хотим перезапускать контейнер при остановке определенного процесса, который не торчит вовне, правда, если он по-каким-то причинам скрашился в одном контейнере, то вероятно скрашится и в других, а это может привести к цикличной перезагрузке контейнеров. Я бы лучше использовала Restart=on-failure для процесса в systemd, и мониоринг процесса какими-нибудь средствами.   
+2. Deployment:
+maxSurge и maxUnavailable не могут быть вместе 0, это указано в документации
+https://kubernetes.io/docs/concepts/workloads/controllers/deployment/
+The absolute number is calculated from percentage by rounding down. The value cannot be 0 if .spec.strategy.rollingUpdate.maxSurge is 0. 
+RollingUpdate не сможет ни создать Pod ни убить. 
+
+3.MetalLB | Проверка конфигурации
+{"caller":"service.go:114","event":"ipAllocated","ip":"172.17.255.2","msg":"IP address assigned by controller","service":"default/web-svc-lb","ts":"2021-05-03T09:20:28.393469257Z"}
+
+4. DNS через MetalLB
+Созданы манифесты
+
+Name:                     coredns-tcp-ext
+Namespace:                kube-system
+Labels:                   <none>
+Annotations:              metallb.universe.tf/allow-shared-ip: kube-dns
+Selector:                 k8s-app=kube-dns
+Type:                     LoadBalancer
+IP Families:              <none>
+IP:                       10.98.138.59
+IPs:                      10.98.138.59
+IP:                       172.17.255.10
+LoadBalancer Ingress:     172.17.255.10
+Port:                     <unset>  53/TCP
+TargetPort:               53/TCP
+NodePort:                 <unset>  32322/TCP
+Endpoints:                172.17.0.2:53
+Session Affinity:         None
+External Traffic Policy:  Cluster
+Events:                   <none>
+
+
+Name:                     coredns-udp-ext
+Namespace:                kube-system
+Labels:                   <none>
+Annotations:              metallb.universe.tf/allow-shared-ip: kube-dns
+Selector:                 k8s-app=kube-dns
+Type:                     LoadBalancer
+IP Families:              <none>
+IP:                       10.101.218.236
+IPs:                      10.101.218.236
+IP:                       172.17.255.10
+LoadBalancer Ingress:     172.17.255.10
+Port:                     <unset>  53/UDP
+TargetPort:               53/UDP
+NodePort:                 <unset>  32378/UDP
+Endpoints:                172.17.0.2:53
+Session Affinity:         None
+External Traffic Policy:  Cluster
+Events:                   <none>
+
+
+
+MacBook-Elena:~ elenakolibri$ nslookup web-svc-lb.default.svc.cluster.local 172.17.255.10
+Server:		172.17.255.10
+Address:	172.17.255.10#53
+
+Name:	web-svc-lb.default.svc.cluster.local
+Address: 10.98.110.131
+
+MacBook-Elena:~ elenakolibri$ nslookup kubernetes.default.svc.cluster.local 172.17.255.10
+Server:		172.17.255.10
+Address:	172.17.255.10#53
+
+Name:	kubernetes.default.svc.cluster.local
+Address: 10.96.0.1
+
+5. Создан ingress для dashboard
+6. Создан canary на основе заголовка "canary: true"
+
+MacBook-Elena:~$ cat /etc/hosts | grep canary.example.com
+172.17.255.3 canary.example.com
+
+MacBook-Elena:~$ curl -H "canary: true" http://canary.example.com/web | grep HOSTNAME
+export HOSTNAME='web-app-v2-7fdf5c7c67-khrl7'
+MacBook-Elena:~$ curl -H "canary: fsdfsdf" http://canary.example.com/web | grep HOSTNAME
+export HOSTNAME='web-app-v1-64d7c7bc5f-vh8nx'
+MacBook-Elena:~$ curl -H "canary: always" http://canary.example.com/web | grep HOSTNAME
+export HOSTNAME='web-app-v1-64d7c7bc5f-wd9xr'
+MacBook-Elena:~$ curl  http://canary.example.com/web | grep HOSTNAME
+export HOSTNAME='web-app-v1-64d7c7bc5f-dhsvx'
+
+
+------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------
 Задание №4 VOLUMES
 
 1. Создан secret verysecret, куда помещены значения переменных в base64
