@@ -31,6 +31,8 @@ spec:
             httpGet:
               path: /index.html 
               port: 8000
+          livenessProbe:
+            tcpSocket: { port: 8000 }
       initContainers:
         - name: init-web
           image: busybox:latest
